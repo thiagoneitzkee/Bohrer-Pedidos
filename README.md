@@ -1,38 +1,21 @@
-# Bohrer Pedidos — MVP profissional
+# Bohrer Pedidos 2.0
+MVP front-end de pedidos online para a Churrascaria Bohrer, pronto para GitHub Pages.
 
-Protótipo funcional de sistema de pedidos para a Churrascaria Bohrer, em Pelotas/RS.
+## Funcionalidades
+- Cardápio responsivo com categorias e busca
+- Carrinho com quantidades e observações
+- Delivery ou retirada
+- Endereço e taxa de entrega
+- Checkout e confirmação
+- Envio do pedido pelo WhatsApp
+- Histórico de pedidos no navegador
+- Painel administrativo com Kanban de status
+- Indicadores de pedidos, faturamento e ticket médio
+- Lista de produtos
+- Sem backend: usa localStorage para demonstração
 
-## O que já funciona
-- Cardápio responsivo
-- Categorias
-- Produtos e preços
-- Carrinho com quantidade
-- Retirada ou delivery
-- Forma de pagamento
-- Criação de pedidos
-- Persistência com localStorage
-- Painel administrativo em formato Kanban
-- Avanço de status: Novo → Em preparo → Pronto → Concluído
-- Indicadores de pedidos e faturamento
-- Layout mobile e desktop
+## Publicação
+Suba `index.html` e a pasta `assets` para a raiz do branch `main` e ative GitHub Pages em Settings > Pages > Deploy from a branch > main > / (root).
 
-## Como testar
-1. Extraia o ZIP.
-2. Abra `index.html` no navegador.
-3. Clique em **Painel** para acessar a área administrativa.
-4. Faça um pedido no cardápio e depois abra o painel.
-
-## Próxima versão para vender
-Este MVP usa `localStorage` para demonstração. Para produção, substitua por:
-- Backend/API
-- PostgreSQL/Supabase
-- Login administrativo
-- Banco de produtos
-- WhatsApp Business API
-- Gateway de pagamento
-- Controle de entrega
-- Impressão de pedidos/cozinha
-- Relatórios por período
-- Domínio próprio e hospedagem
-
-> Observação: nomes, preços, horários e demais dados usados no protótipo são demonstrativos e devem ser validados com o estabelecimento antes de qualquer uso comercial.
+## Próxima etapa profissional
+Para uso real por vários clientes/dispositivos, trocar localStorage por backend + banco de dados e autenticação administrativa.

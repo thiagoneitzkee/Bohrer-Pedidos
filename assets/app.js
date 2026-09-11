@@ -1,88 +1,31 @@
-const products = window.BOHRER.products;
-let state = { cart: JSON.parse(localStorage.getItem("bohrer_cart") || "[]"), category:"Destaques" };
-
-const money = n => n.toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
-const save = () => localStorage.setItem("bohrer_cart", JSON.stringify(state.cart));
-const count = () => state.cart.reduce((s,i)=>s+i.qty,0);
-const total = () => state.cart.reduce((s,i)=>s+i.price*i.qty,0);
-
+const products=window.BOHRER.products, restaurant=window.BOHRER.restaurant;
+const key='bohrer_v2';
+let state={cart:JSON.parse(localStorage.getItem(key+'_cart')||'[]'),category:'Destaques',search:'',delivery:false};
+const money=n=>n.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const orders=()=>JSON.parse(localStorage.getItem(key+'_orders')||'[]');
+const save=()=>localStorage.setItem(key+'_cart',JSON.stringify(state.cart));
+const count=()=>state.cart.reduce((s,i)=>s+i.qty,0); const subtotal=()=>state.cart.reduce((s,i)=>s+i.price*i.qty,0);
+const fee=()=>state.delivery&&state.cart.length?restaurant.deliveryFee:0; const total=()=>subtotal()+fee();
+const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
 function shell(){
-  document.getElementById("app").innerHTML = `
-  <header class="header"><nav class="nav">
-    <div class="logo">BOHRER <span>•</span></div>
-    <div class="nav-actions">
-      <button class="icon-btn" onclick="openCart()">🛒 <span id="navCount">${count()}</span></button>
-      <button class="icon-btn" onclick="renderAdmin()">Painel</button>
-    </div>
-  </nav></header>
-  <main>
-    <section class="hero">
-      <div class="hero-card"><div class="eyebrow">Churrascaria • Pelotas/RS</div>
-        <h1>Sabor de verdade,<br>do nosso jeito.</h1>
-        <p>Faça seu pedido de forma rápida e escolha entre retirar ou receber em casa.</p>
-      </div>
-      <div class="info-card">
-        <div class="eyebrow">Bohrer</div>
-        <div class="info-row"><span>●</span><div><b>Aberto</b><br><small>Consulte o horário de atendimento</small></div></div>
-        <div class="info-row"><span>📍</span><div>${window.BOHRER.restaurant.address}<br>${window.BOHRER.restaurant.city}</div></div>
-        <div class="info-row"><span>🚚</span><div><b>Delivery e retirada</b><br>Pedido online</div></div>
-      </div>
-    </section>
-    <section class="container">
-      <div class="category-bar">${window.BOHRER.categories.map(c=>`<button class="cat ${state.category===c?"active":""}" onclick="setCategory('${c}')">${c}</button>`).join("")}</div>
-      <h2 class="section-title">${state.category}</h2>
-      <div class="grid">${products.filter(p=>state.category==="Destaques"?p.popular:p.category===state.category).map(card).join("")}</div>
-    </section>
-  </main>
-  <button class="cart-fab" onclick="openCart()">🛒 Ver pedido <span class="badge">${count()}</span></button>
-  <div id="overlay" class="overlay"></div>
-  <div id="toast" class="toast"></div>`;
+ const filtered=products.filter(p=>(state.category==='Destaques'?p.popular:p.category===state.category)&&(!state.search||(`${p.name} ${p.description}`).toLowerCase().includes(state.search.toLowerCase())));
+ document.getElementById('app').innerHTML=`<header class="header"><nav class="nav"><button class="brand" onclick="shell()">BOHRER <span>•</span></button><div class="nav-actions"><button class="navbtn" onclick="openOrders()">📋 Meus pedidos</button><button class="navbtn cartbtn" onclick="openCart()">🛒 <span id="navCount">${count()}</span></button><button class="navbtn adminbtn" onclick="renderAdmin()">⚙ Painel</button></div></nav></header><main><section class="hero"><div class="hero-card"><div class="eyebrow">${restaurant.name} • Pelotas/RS</div><h1>Sabor de verdade,<br>do nosso jeito.</h1><p>Faça seu pedido online, escolha delivery ou retirada e acompanhe tudo de forma simples.</p><div class="hero-actions"><button class="primary small" onclick="scrollToMenu()">Ver cardápio</button><button class="ghost" onclick="openInfo()">Como funciona?</button></div></div><div class="info-card"><div class="eyebrow">Hoje</div><div class="status"><i></i><b>Aberto</b></div><div class="info-row">📍 <span>${restaurant.address}<br>${restaurant.city}</span></div><div class="info-row">🚚 <span>Delivery <b>${money(restaurant.deliveryFee)}</b> • Retirada</span></div><div class="info-row">💬 <span>Pedido online e suporte pelo WhatsApp</span></div></div></section><section class="container" id="menu"><div class="search"><span>⌕</span><input value="${esc(state.search)}" oninput="searchMenu(this.value)" placeholder="Buscar prato, bebida ou sobremesa..."></div><div class="category-bar">${window.BOHRER.categories.map(c=>`<button class="cat ${state.category===c?'active':''}" onclick="setCategory('${c}')">${c}</button>`).join('')}</div><div class="section-line"><div><div class="eyebrow">Cardápio</div><h2>${state.category}</h2></div><span>${filtered.length} opções</span></div><div class="grid">${filtered.map(card).join('')||'<div class="empty wide">Nenhum produto encontrado.</div>'}</div></section></main><button class="cart-fab" onclick="openCart()">🛒 Ver pedido <span class="badge">${count()}</span></button><div id="overlay" class="overlay"></div><div id="toast" class="toast"></div>`;
 }
-function card(p){return `<article class="product">
-  <div class="product-top"><span class="emoji">${p.emoji}</span>${p.popular?'<span class="tag">MAIS PEDIDO</span>':''}</div>
-  <h3>${p.name}</h3><p>${p.description}</p>
-  <div class="price">${money(p.price)}</div><button class="add" onclick="add(${p.id})">Adicionar</button>
-</article>`}
-function setCategory(c){state.category=c;shell()}
-function add(id){
-  const p=products.find(x=>x.id===id), old=state.cart.find(x=>x.id===id);
-  old?old.qty++:state.cart.push({...p,qty:1});save();shell();toast("Item adicionado ao pedido");
-}
-function change(id,d){
-  const i=state.cart.findIndex(x=>x.id===id); if(i<0)return;
-  state.cart[i].qty+=d;if(state.cart[i].qty<=0)state.cart.splice(i,1);save();openCart();
-}
-function openCart(){
-  const overlay=document.getElementById("overlay"); if(!overlay)return;
-  overlay.className="overlay open";
-  overlay.innerHTML=`<aside class="drawer"><div class="drawer-head"><h2>Seu pedido</h2><button class="close" onclick="closeCart()">✕</button></div>
-  ${state.cart.length?state.cart.map(i=>`<div class="cart-item"><div>${i.emoji}</div><div class="cart-item-main"><b>${i.name}</b><br><small>${money(i.price)}</small>
-  <div class="qty"><button onclick="change(${i.id},-1)">−</button><b>${i.qty}</b><button onclick="change(${i.id},1)">+</button><span style="margin-left:auto">${money(i.price*i.qty)}</span></div></div></div>`).join(""):'<div class="empty">Seu carrinho está vazio.<br>Escolha algo delicioso para começar.</div>'}
-  ${state.cart.length?`<div class="total"><span>Total</span><span>${money(total())}</span></div>
-  <div class="field"><label>Nome</label><input id="customerName" placeholder="Como podemos te chamar?"></div>
-  <div class="field"><label>Tipo de pedido</label><select id="orderType"><option>Retirada no restaurante</option><option>Delivery</option></select></div>
-  <div class="field"><label>Forma de pagamento</label><select id="payment"><option>Pix</option><option>Cartão</option><option>Dinheiro</option></select></div>
-  <button class="primary" onclick="finishOrder()">Finalizar pedido • ${money(total())}</button>`:""}
-  </aside>`;
-}
-function closeCart(){const o=document.getElementById("overlay");if(o)o.className="overlay"}
-function finishOrder(){
-  const name=document.getElementById("customerName").value.trim()||"Cliente";
-  const type=document.getElementById("orderType").value,payment=document.getElementById("payment").value;
-  const orders=JSON.parse(localStorage.getItem("bohrer_orders")||"[]");
-  const order={id:Math.floor(1000+Math.random()*8999),name,type,payment,total:total(),items:state.cart.map(i=>({name:i.name,qty:i.qty,price:i.price})),status:"novo",created:new Date().toISOString()};
-  orders.unshift(order);localStorage.setItem("bohrer_orders",JSON.stringify(orders));state.cart=[];save();closeCart();shell();toast(`Pedido #${order.id} recebido!`);
-}
-function toast(msg){const t=document.getElementById("toast");if(!t)return;t.textContent=msg;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),2500)}
-
-function renderAdmin(){
- const orders=JSON.parse(localStorage.getItem("bohrer_orders")||"[]");
- document.getElementById("app").innerHTML=`<header class="header"><nav class="nav"><div class="logo">BOHRER <span>•</span> PAINEL</div><button class="icon-btn" onclick="shell()">← Cardápio</button></nav></header>
- <main class="admin"><div class="admin-head"><div><div class="eyebrow">Gestão</div><h1>Pedidos</h1></div><button class="icon-btn" onclick="renderAdmin()">↻ Atualizar</button></div>
- <div class="stats"><div class="stat"><span>Pedidos hoje</span><strong>${orders.length}</strong></div><div class="stat"><span>Faturamento</span><strong>${money(orders.reduce((s,o)=>s+o.total,0))}</strong></div><div class="stat"><span>Em preparo</span><strong>${orders.filter(o=>o.status==="preparo").length}</strong></div><div class="stat"><span>Concluídos</span><strong>${orders.filter(o=>o.status==="concluido").length}</strong></div></div>
- <div class="kanban">${column("novo","Novos pedidos",orders)}${column("preparo","Em preparo",orders)}${column("pronto","Prontos",orders)}${column("concluido","Concluídos",orders)}</div></main>`;
-}
-function column(status,title,orders){return `<section class="column"><h3>${title} · ${orders.filter(o=>o.status===status).length}</h3>${orders.filter(o=>o.status===status).map(o=>`<article class="order"><b>#${o.id} • ${o.name}</b><br><small>${o.type} · ${o.payment}</small><div class="order-items">${o.items.map(i=>`${i.qty}x ${i.name}`).join("<br>")}</div><div class="order-total">${money(o.total)}</div><div class="order-actions">${status!=="concluido"?`<button onclick="advance(${o.id})">Avançar →</button>`:""}<button onclick="removeOrder(${o.id})">Excluir</button></div></article>`).join("")||'<div class="empty">Nenhum pedido</div>'}</section>`}
-function advance(id){const orders=JSON.parse(localStorage.getItem("bohrer_orders")||"[]"),o=orders.find(x=>x.id===id);if(!o)return;const seq=["novo","preparo","pronto","concluido"];o.status=seq[Math.min(seq.indexOf(o.status)+1,3)];localStorage.setItem("bohrer_orders",JSON.stringify(orders));renderAdmin()}
-function removeOrder(id){const orders=JSON.parse(localStorage.getItem("bohrer_orders")||"[]").filter(o=>o.id!==id);localStorage.setItem("bohrer_orders",JSON.stringify(orders));renderAdmin()}
+function card(p){return `<article class="product"><div class="product-top"><span class="emoji">${p.emoji}</span>${p.popular?'<span class="tag">MAIS PEDIDO</span>':''}</div><h3>${esc(p.name)}</h3><p>${esc(p.description)}</p><div class="product-bottom"><strong>${money(p.price)}</strong><button class="add" onclick="add(${p.id})">Adicionar</button></div></article>`}
+function setCategory(c){state.category=c;state.search='';shell();scrollToMenu()}; function searchMenu(v){state.search=v;state.category='Destaques';shell();document.querySelector('.search input')?.focus()}; function scrollToMenu(){setTimeout(()=>document.getElementById('menu')?.scrollIntoView({behavior:'smooth'}),30)}
+function add(id){const p=products.find(x=>x.id===id),old=state.cart.find(x=>x.id===id);old?old.qty++:state.cart.push({...p,qty:1,note:''});save();shell();toast('Item adicionado ao pedido')}
+function change(id,d){const i=state.cart.findIndex(x=>x.id===id);if(i<0)return;state.cart[i].qty+=d;if(state.cart[i].qty<=0)state.cart.splice(i,1);save();openCart()}
+function openCart(){const o=document.getElementById('overlay');if(!o)return;o.className='overlay open';o.innerHTML=`<aside class="drawer"><div class="drawer-head"><div><div class="eyebrow">Checkout</div><h2>Seu pedido</h2></div><button class="close" onclick="closeOverlay()">✕</button></div>${state.cart.length?state.cart.map(i=>`<div class="cart-item"><div class="emoji mini">${i.emoji}</div><div class="cart-main"><b>${esc(i.name)}</b><small>${money(i.price)}</small><div class="qty"><button onclick="change(${i.id},-1)">−</button><b>${i.qty}</b><button onclick="change(${i.id},1)">+</button><span>${money(i.price*i.qty)}</span></div><input class="note" value="${esc(i.note)}" onchange="setNote(${i.id},this.value)" placeholder="Observação (opcional)"></div></div>`).join(''):'<div class="empty">Seu carrinho está vazio.<br>Escolha algo delicioso para começar.</div>'}${state.cart.length?`<div class="checkout-box"><div class="total-row"><span>Subtotal</span><b>${money(subtotal())}</b></div><div class="switch-row"><span>🚚 Delivery</span><label class="switch"><input type="checkbox" ${state.delivery?'checked':''} onchange="toggleDelivery(this.checked)"><span></span></label></div>${state.delivery?`<div class="field"><label>Endereço</label><input id="address" placeholder="Rua, número, bairro"></div>`:''}<div class="field"><label>Nome</label><input id="customerName" placeholder="Seu nome"></div><div class="two"><div class="field"><label>Pagamento</label><select id="payment"><option>Pix</option><option>Cartão</option><option>Dinheiro</option></select></div><div class="field"><label>Observação</label><input id="orderObs" placeholder="Ex.: troco para R$ 100"></div></div><div class="total"><span>Total</span><strong>${money(total())}</strong></div><button class="primary full" onclick="finishOrder()">Confirmar pedido • ${money(total())}</button></div>`:''}</aside>`}
+function setNote(id,v){const i=state.cart.find(x=>x.id===id);if(i){i.note=v;save()}} function toggleDelivery(v){state.delivery=v;openCart()}
+function finishOrder(){const name=document.getElementById('customerName')?.value.trim();if(!name){toast('Informe seu nome');return}if(state.delivery&&!document.getElementById('address')?.value.trim()){toast('Informe o endereço');return}const o={id:String(Date.now()).slice(-6),name,type:state.delivery?'Delivery':'Retirada',address:document.getElementById('address')?.value||'',payment:document.getElementById('payment').value,observation:document.getElementById('orderObs')?.value||'',total:total(),items:state.cart.map(i=>({name:i.name,qty:i.qty,price:i.price,note:i.note})),status:'novo',created:new Date().toISOString()};const list=orders();list.unshift(o);localStorage.setItem(key+'_orders',JSON.stringify(list));const text=`Olá, Bohrer! Gostaria de confirmar o pedido #${o.id}.\n\n${o.items.map(i=>`${i.qty}x ${i.name}${i.note?' ('+i.note+')':''}`).join('\n')}\n\nTotal: ${money(o.total)}\nTipo: ${o.type}${o.address?'\nEndereço: '+o.address:''}\nPagamento: ${o.payment}`;state.cart=[];state.delivery=false;save();closeOverlay();shell();toast('Pedido confirmado!');setTimeout(()=>{if(confirm('Deseja enviar o pedido pelo WhatsApp?'))window.open('https://wa.me/'+restaurant.whatsapp+'?text='+encodeURIComponent(text),'_blank')},350)}
+function openOrders(){const o=document.getElementById('overlay');if(!o)return;o.className='overlay open';const list=orders().slice(0,10);o.innerHTML=`<aside class="drawer"><div class="drawer-head"><div><div class="eyebrow">Histórico</div><h2>Meus pedidos</h2></div><button class="close" onclick="closeOverlay()">✕</button></div>${list.length?list.map(x=>`<article class="history"><div><b>#${x.id}</b><small>${new Date(x.created).toLocaleString('pt-BR')}</small></div><span class="status-pill ${x.status}">${labelStatus(x.status)}</span><p>${x.items.map(i=>`${i.qty}x ${esc(i.name)}`).join(' • ')}</p><strong>${money(x.total)}</strong></article>`).join(''):'<div class="empty">Nenhum pedido realizado neste navegador.</div>'}</aside>`}
+function labelStatus(s){return {novo:'Recebido',preparo:'Em preparo',pronto:'Pronto',concluido:'Entregue'}[s]||s} function closeOverlay(){document.getElementById('overlay').className='overlay'}
+function openInfo(){const o=document.getElementById('overlay');o.className='overlay open';o.innerHTML=`<aside class="drawer"><div class="drawer-head"><h2>Como funciona</h2><button class="close" onclick="closeOverlay()">✕</button></div><div class="steps"><div><b>1</b><span>Escolha os produtos e adicione ao carrinho.</span></div><div><b>2</b><span>Escolha retirada ou delivery e informe seus dados.</span></div><div><b>3</b><span>Confirme o pedido e envie pelo WhatsApp.</span></div><div><b>4</b><span>Acompanhe o status no histórico de pedidos.</span></div></div><button class="primary full" onclick="closeOverlay();scrollToMenu()">Começar pedido</button></aside>`}
+function renderAdmin(){const list=orders(),revenue=list.reduce((s,o)=>s+o.total,0),today=new Date().toDateString(),todayOrders=list.filter(o=>new Date(o.created).toDateString()===today),avg=list.length?revenue/list.length:0;document.getElementById('app').innerHTML=`<header class="header"><nav class="nav"><button class="brand" onclick="shell()">BOHRER <span>•</span> PAINEL</button><div class="nav-actions"><button class="navbtn" onclick="shell()">← Cardápio</button><button class="navbtn" onclick="renderAdmin()">↻ Atualizar</button></div></nav></header><main class="admin"><div class="admin-head"><div><div class="eyebrow">Gestão do restaurante</div><h1>Painel</h1></div><button class="danger" onclick="clearOrders()">Limpar histórico</button></div><div class="stats"><div class="stat"><span>Pedidos hoje</span><strong>${todayOrders.length}</strong></div><div class="stat"><span>Faturamento total</span><strong>${money(revenue)}</strong></div><div class="stat"><span>Ticket médio</span><strong>${money(avg)}</strong></div><div class="stat"><span>Em preparo</span><strong>${list.filter(o=>o.status==='preparo').length}</strong></div></div><div class="dashboard-grid"><section class="panel"><div class="panel-head"><h2>Pedidos</h2><span>${list.length} no histórico</span></div><div class="kanban">${column('novo','Novos',list)}${column('preparo','Em preparo',list)}${column('pronto','Prontos',list)}${column('concluido','Concluídos',list)}</div></section><section class="panel"><div class="panel-head"><h2>Produtos</h2><span>${products.length} cadastrados</span></div><div class="product-list">${products.map(p=>`<div><span class="emoji mini">${p.emoji}</span><div><b>${esc(p.name)}</b><small>${p.category}</small></div><strong>${money(p.price)}</strong></div>`).join('')}</div></section></div></main>`}
+function column(status,title,list){return `<section class="column"><h3>${title} · ${list.filter(o=>o.status===status).length}</h3>${list.filter(o=>o.status===status).map(o=>`<article class="order"><div class="order-head"><b>#${o.id} • ${esc(o.name)}</b><span>${new Date(o.created).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</span></div><small>${o.type} · ${o.payment}</small>${o.address?`<small>📍 ${esc(o.address)}</small>`:''}<div class="order-items">${o.items.map(i=>`${i.qty}x ${esc(i.name)}${i.note?` — ${esc(i.note)}`:''}`).join('<br>')}</div>${o.observation?`<div class="obs">${esc(o.observation)}</div>`:''}<div class="order-total">${money(o.total)}</div><div class="order-actions">${status!=='concluido'?`<button onclick="advance('${o.id}')">Avançar →</button>`:''}<button onclick="sendOrder('${o.id}')">WhatsApp</button><button onclick="removeOrder('${o.id}')">Excluir</button></div></article>`).join('')||'<div class="empty">Nenhum pedido</div>'}</section>`}
+function advance(id){const list=orders(),o=list.find(x=>x.id===id);if(!o)return;const seq=['novo','preparo','pronto','concluido'];o.status=seq[Math.min(seq.indexOf(o.status)+1,3)];localStorage.setItem(key+'_orders',JSON.stringify(list));renderAdmin()}
+function removeOrder(id){localStorage.setItem(key+'_orders',JSON.stringify(orders().filter(o=>o.id!==id)));renderAdmin()}
+function sendOrder(id){const o=orders().find(x=>x.id===id);if(!o)return;const text=`Pedido #${o.id} - ${o.name}\n${o.items.map(i=>`${i.qty}x ${i.name}`).join('\n')}\nTotal: ${money(o.total)}`;window.open('https://wa.me/'+restaurant.whatsapp+'?text='+encodeURIComponent(text),'_blank')}
+function clearOrders(){if(confirm('Excluir todo o histórico de pedidos?')){localStorage.removeItem(key+'_orders');renderAdmin()}}
+function toast(msg){const t=document.getElementById('toast');if(!t)return;t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500)}
 shell();
