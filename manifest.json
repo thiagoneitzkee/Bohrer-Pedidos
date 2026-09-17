@@ -1,0 +1,10 @@
+{
+  "name": "Bohrer Pedidos 6.0",
+  "short_name": "Bohrer Pedidos",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f7f3ee",
+  "theme_color": "#111111",
+  "icons": [],
+  "description": "Sistema completo de pedidos e gestão da Bohrer"
+}
