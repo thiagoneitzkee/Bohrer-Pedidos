@@ -1,3 +1,7 @@
+const supabase = window.supabase.createClient(
+  C.supabaseUrl,
+  C.supabaseAnonKey
+);
 const C=window.BOHRER_CONFIG||{}, SEED=window.BOHRER||{products:[]};
 const KEY='bohrer_v60';
 let db=JSON.parse(localStorage.getItem(KEY)||'null')||{products:SEED.products||[],orders:[],customers:[],users:[{id:1,name:'Administrador',email:'admin@bohrer.local',role:'admin',active:true}],tables:Array.from({length:12},(_,i)=>({id:i+1,name:'Mesa '+(i+1),status:'livre',orderId:null})),inventory:[],settings:{...(SEED.restaurant||{}),deliveryFee:7,minOrder:0,freeDelivery:0,open:true},coupons:[{code:'BOHRER10',type:'percent',value:10,active:true}]};
