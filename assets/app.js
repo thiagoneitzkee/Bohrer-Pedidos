@@ -1,5 +1,5 @@
-const C=window.BOHRER_CONFIG||{}, SEED=window.BOHRER||{products:[]};
-const KEY='bohrer_v60';
+const C = window.BOHRER_CONFIG || {};
+const SEED = window.BOHRER || { products: [] };
 const supabase = C.supabaseUrl && C.supabaseAnonKey
   ? window.supabase.createClient(C.supabaseUrl, C.supabaseAnonKey)
   : null;
@@ -78,8 +78,8 @@ function trackOrder(id){id=String(id||'').trim();const x=db.orders.find(o=>o.id=
 function openInfo(){const o=$('#overlay');o.className='overlay open';o.innerHTML=`<aside class="drawer small"><div class="drawer-head"><h2>Como funciona</h2><button onclick="close()">✕</button></div><p>Escolha seus produtos, monte o carrinho e finalize. A Bohrer recebe o pedido no painel e a equipe atualiza o status conforme o preparo.</p><p>Na versão 5.0, o sistema também possui cozinha, mesas, estoque, clientes, relatórios e perfis de equipe.</p></aside>`}
 function login(){const o=$('#overlay');o.className='overlay open';o.innerHTML=`<aside class="drawer small"><div class="drawer-head"><h2>Acesso à gestão</h2><button onclick="close()">✕</button></div><input id="lemail" placeholder="E-mail" value="admin@bohrer.local"><input id="lpass" type="password" placeholder="Senha" value="bohrer123"><button class="primary full" onclick="doLogin()">Entrar</button><p class="muted">Demonstração local: admin@bohrer.local / bohrer123</p></aside>`}
 async function doLogin(){
-  const email=$('#lemail').value.trim();
-  const password=$('#lpass').value;
+  const email = $('#lemail').value.trim();
+  const password = $('#lpass').value;
 
   if(!email || !password){
     toast('Informe e-mail e senha');
@@ -158,11 +158,11 @@ async function logout(){
   if(supabase){
     await supabase.auth.signOut();
   }
-  state.user=null;
+  state.user = null;
   go('home');
 }
 window.addEventListener('load', async ()=>{
-  if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
+  if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
 
   if(supabase){
     const { data: { session } } = await supabase.auth.getSession();
@@ -186,5 +186,8 @@ window.addEventListener('load', async ()=>{
 
   shell();
 
-  if(cloudReady()){sync().then(shell).catch(()=>{});setInterval(()=>sync().then(()=>{if(state.page==='admin')admin();}),30000);}
+  if(cloudReady()){
+    sync().then(shell).catch(()=>{});
+    setInterval(()=>sync().then(()=>{if(state.page==='admin')admin();}),30000);
+  }
 });
