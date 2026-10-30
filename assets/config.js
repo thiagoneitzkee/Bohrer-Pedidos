@@ -1,6 +1,6 @@
 window.BOHRER_CONFIG = {
-  supabaseUrl: 'https://sammtyviosytzvmlbvou.supabase.co',
-  supabaseAnonKey: 'sb_publishable_8MfrY61_KDRLd-VvQecjYQ_QICK8yxm',
+  supabaseUrl: 'https://SEU_PROJETO.supabase.co',
+  supabaseAnonKey: 'SUA_ANON_KEY',
   adminUser: '',
   adminPassword: ''
 };
