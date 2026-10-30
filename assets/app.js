@@ -1,11 +1,10 @@
-const C = window.BOHRER_CONFIG || {};
-const SEED = window.BOHRER || { products: [] };
+const C=window.BOHRER_CONFIG||{}, SEED=window.BOHRER||{products:[]};
+const KEY='bohrer_v60';
 const supabase = C.supabaseUrl && C.supabaseAnonKey
   ? window.supabase.createClient(C.supabaseUrl, C.supabaseAnonKey)
   : null;
-const KEY='bohrer_v60';
-let db=JSON.parse(localStorage.getItem(KEY)||'null')||{products:SEED.products||[],orders:[],customers:[],users:[{id:1,name:'Administrador',email:'admin@bohrer.local',role:'admin',active:true}],tables:Array.from({length:12},(_,i)=>({id:i+1,name:'Mesa '+(i+1),status:'livre',orderId:null})),inventory:[],settings:{...(SEED.restaurant||{}),deliveryFee:7,minOrder:0,freeDelivery:0,open:true},coupons:[{code:'BOHRER10',type:'percent',value:10,active:true}]};
-let state={page:'home',tab:'dashboard',cart:JSON.parse(localStorage.getItem(KEY+'_cart')||'[]'),delivery:false,user:null,search:'',cat:'Destaques',cloud:false,selectedOrder:null,favorites:JSON.parse(localStorage.getItem(KEY+'_favorites')||'[]'),checkout:{name:'',phone:'',address:'',payment:'Pix',coupon:'',observation:''}};
+let db=JSON.parse(localStorage.getItem(KEY)||'null')||{products:SEED.products||[],orders:[],customers:[],users:[{id:1,name:'Administrador',email:'admin@bohrer.local',role:'admin',active:true}],tables:[],settings:{name:'Bohrer',city:'',address:'',whatsapp:'',deliveryFee:7,minOrder:0,freeDelivery:0,open:true},coupons:[],checkout:{name:'',phone:'',address:'',payment:'Pix',coupon:'',observation:''},favorites:[]};
+let state={page:'home',tab:'dashboard',cart:JSON.parse(localStorage.getItem(KEY+'_cart')||'[]'),delivery:false,user:null,search:'',cat:'Destaques',cloud:false,selectedOrder:null,favorites:JSON.parse(localStorage.getItem(KEY+'_favorites')||'[]')};
 const $=s=>document.querySelector(s), money=n=>Number(n||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}), esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
 const save=()=>localStorage.setItem(KEY,JSON.stringify(db)), saveCart=()=>localStorage.setItem(KEY+'_cart',JSON.stringify(state.cart));
 const saveFavorites=()=>localStorage.setItem(KEY+'_favorites',JSON.stringify(state.favorites));
@@ -78,8 +77,52 @@ function openTrack(){const o=$('#overlay');o.className='overlay open';o.innerHTM
 function trackOrder(id){id=String(id||'').trim();const x=db.orders.find(o=>o.id===id);if(!x)return toast('Pedido não encontrado');const o=$('#overlay');o.className='overlay open';const steps=['novo','preparo','pronto','concluido'];o.innerHTML=`<aside class="drawer small"><div class="drawer-head"><div><small>PEDIDO #${esc(x.id)}</small><h2>${statusLabel(x.status)}</h2></div><button onclick="close()">✕</button></div><div class="status-hero"><b>${esc(x.name)}</b><p>${x.type} • ${x.payment}<br>${new Date(x.created).toLocaleString('pt-BR')}</p></div><div class="timeline big">${steps.map((s,i)=>`<i class="${steps.indexOf(x.status)>=i?'on':''}">${['Recebido','Preparo','Pronto','Entregue'][i]}</i>`).join('')}</div><div class="detail-list">${x.items.map(i=>`<div><span>${i.qty}x ${esc(i.name)}<small>${esc(i.note||'')}</small></span><b>${money(i.qty*i.price)}</b></div>`).join('')}<div><strong>Total</strong><strong>${money(x.total)}</strong></div></div></aside>`}
 function openInfo(){const o=$('#overlay');o.className='overlay open';o.innerHTML=`<aside class="drawer small"><div class="drawer-head"><h2>Como funciona</h2><button onclick="close()">✕</button></div><p>Escolha seus produtos, monte o carrinho e finalize. A Bohrer recebe o pedido no painel e a equipe atualiza o status conforme o preparo.</p><p>Na versão 5.0, o sistema também possui cozinha, mesas, estoque, clientes, relatórios e perfis de equipe.</p></aside>`}
 function login(){const o=$('#overlay');o.className='overlay open';o.innerHTML=`<aside class="drawer small"><div class="drawer-head"><h2>Acesso à gestão</h2><button onclick="close()">✕</button></div><input id="lemail" placeholder="E-mail" value="admin@bohrer.local"><input id="lpass" type="password" placeholder="Senha" value="bohrer123"><button class="primary full" onclick="doLogin()">Entrar</button><p class="muted">Demonstração local: admin@bohrer.local / bohrer123</p></aside>`}
-function doLogin(){const e=$('#lemail').value.trim(),p=$('#lpass').value;if((e==='admin@bohrer.local'&&p==='bohrer123')||db.users.some(u=>u.email===e&&u.password===p&&u.active!==false)){state.user=db.users.find(u=>u.email===e)||db.users[0];close();go('admin')}else toast('Login inválido')}
-function go(p){state.page=p;shell()}
+async function doLogin(){
+  const email=$('#lemail').value.trim();
+  const password=$('#lpass').value;
+
+  if(!email || !password){
+    toast('Informe e-mail e senha');
+    return;
+  }
+
+  if(!supabase){
+    toast('Supabase não configurado');
+    return;
+  }
+
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password
+  });
+
+  if (error) {
+    toast('Credenciais inválidas');
+    return;
+  }
+
+  const { data: profile, error: profileError } = await supabase
+    .from('staff_profiles')
+    .select('name, role, active')
+    .eq('id', data.user.id)
+    .single();
+
+  if (profileError || !profile || profile.active === false) {
+    toast('Usuário sem acesso ao painel');
+    await supabase.auth.signOut();
+    return;
+  }
+
+  state.user = {
+    id: data.user.id,
+    email: data.user.email,
+    name: profile.name,
+    role: profile.role
+  };
+
+  close();
+  admin();
+}
 function admin(){if(!state.user){return login()}const tabs=[['dashboard','Dashboard'],['orders','Pedidos'],['kitchen','Cozinha'],['tables','Mesas'],['products','Produtos'],['inventory','Estoque'],['customers','Clientes'],['reports','Relatórios'],['team','Equipe'],['settings','Configurações']];$('#app').innerHTML=`<header><nav><button class="brand" onclick="go('home')">BOHRER <span>•</span></button><div class="actions"><button onclick="go('home')">← Cardápio</button><button onclick="logout()">Sair</button></div></nav></header><main class="admin"><div class="admin-head"><div><small>PAINEL DE GESTÃO • 5.0</small><h1>${tabs.find(x=>x[0]===state.tab)?.[1]||'Dashboard'}</h1></div><span class="badge">● ${state.cloud?'Nuvem':'Local'}</span></div><div class="admin-tabs">${tabs.map(([k,n])=>`<button class="${state.tab===k?'active':''}" onclick="state.tab='${k}';admin()">${n}</button>`).join('')}</div>${adminContent()}</main><div id="overlay" class="overlay"></div><div id="toast" class="toast"></div>`}
 function adminContent(){switch(state.tab){case'orders':return ordersAdmin();case'kitchen':return kitchen();case'tables':return tablesAdmin();case'products':return productsAdmin();case'inventory':return inventoryAdmin();case'customers':return customersAdmin();case'reports':return reportsAdmin();case'team':return teamAdmin();case'settings':return settingsAdmin();default:return dashboard()}}
 function dashboard(){const valid=db.orders.filter(o=>o.status!=='cancelado'),today=new Date().toDateString(),td=valid.filter(o=>new Date(o.created).toDateString()===today),rev=td.reduce((a,o)=>a+o.total,0),pending=td.filter(o=>['novo','preparo'].includes(o.status)).length;return `<div class="stats"><div><span>Faturamento hoje</span><strong>${money(rev)}</strong></div><div><span>Pedidos hoje</span><strong>${td.length}</strong></div><div><span>Ticket médio</span><strong>${money(td.length?rev/td.length:0)}</strong></div><div><span>Em aberto</span><strong>${pending}</strong></div></div><div class="dashboard-grid"><section class="panel"><div class="panel-title"><h2>Pedidos recentes</h2><button class="primary" onclick="state.tab='orders';admin()">Ver todos</button></div>${td.slice(0,7).map(o=>`<div class="mini-order" onclick="orderDetail('${o.id}')"><div><b>#${o.id} • ${esc(o.name)}</b><span>${statusLabel(o.status)}</span></div><p>${o.items.map(i=>`${i.qty}x ${esc(i.name)}`).join(' • ')}</p><strong>${money(o.total)}</strong></div>`).join('')||'<div class="empty">Nenhum pedido hoje.</div>'}</section><section class="panel"><h2>Ações rápidas</h2><div class="shortcut-grid"><button onclick="state.tab='kitchen';admin()">👨‍🍳<br>Cozinha</button><button onclick="productModal()">🍽️<br>Novo produto</button><button onclick="state.tab='tables';admin()">🪑<br>Mesas</button><button onclick="state.tab='inventory';admin()">📦<br>Estoque</button></div><hr><p><b>Status:</b> ${db.settings.open?'Aceitando pedidos':'Pedidos fechados'}</p><button class="ghost full" onclick="toggleOpen()">${db.settings.open?'Fechar pedidos':'Abrir pedidos'}</button></section></div>`}
@@ -111,9 +154,37 @@ function setStatus(id,s){const o=db.orders.find(x=>x.id===id);if(o){o.status=s;s
 function waCustomer(phone){window.open('https://wa.me/'+String(phone).replace(/\D/g,''),'_blank')}
 function printOrder(id){const x=db.orders.find(o=>o.id===id);if(!x)return;const w=window.open('','_blank','width=420,height=700');w.document.write(`<html><head><title>Pedido #${x.id}</title><style>body{font:14px Arial;padding:20px}h1{text-align:center}div{display:flex;justify-content:space-between;margin:8px 0}hr{border:0;border-top:1px dashed #999}</style></head><body><h1>BOHRER</h1><p>Pedido #${x.id}</p><hr>${x.items.map(i=>`<div><span>${i.qty}x ${esc(i.name)}</span><b>${money(i.price*i.qty)}</b></div>`).join('')}<hr><div><b>Total</b><b>${money(x.total)}</b></div><p>${x.type} • ${x.payment}</p>${x.address?`<p>${esc(x.address)}</p>`:''}<script>window.print()</script></body></html>`);w.document.close()}
 function exportCSV(){const rows=[['Pedido','Cliente','Telefone','Tipo','Pagamento','Total','Status','Data'],...db.orders.map(o=>[o.id,o.name,o.phone,o.type,o.payment,o.total,o.status,new Date(o.created).toLocaleString('pt-BR')])];const csv=rows.map(r=>r.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(';')).join('\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv'}));a.download='bohrer-relatorio.csv';a.click()}
-function logout(){state.user=null;go('home')}
-window.addEventListener('load',()=>{
- if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
- shell();
- if(cloudReady()){sync().then(shell).catch(()=>{});setInterval(()=>sync().then(()=>{if(state.page==='admin')admin();}),30000);}
+async function logout(){
+  if(supabase){
+    await supabase.auth.signOut();
+  }
+  state.user=null;
+  go('home');
+}
+window.addEventListener('load', async ()=>{
+  if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
+
+  if(supabase){
+    const { data: { session } } = await supabase.auth.getSession();
+    if(session && session.user){
+      const { data: profile } = await supabase
+        .from('staff_profiles')
+        .select('name, role, active')
+        .eq('id', session.user.id)
+        .single();
+
+      if(profile && profile.active !== false){
+        state.user = {
+          id: session.user.id,
+          email: session.user.email,
+          name: profile.name,
+          role: profile.role
+        };
+      }
+    }
+  }
+
+  shell();
+
+  if(cloudReady()){sync().then(shell).catch(()=>{});setInterval(()=>sync().then(()=>{if(state.page==='admin')admin();}),30000);}
 });
